@@ -1,0 +1,9 @@
+[wokwi]
+version = 1
+firmware = '.pio/build/xiao/firmware.bin'
+elf = '.pio/build/xiao/firmware.elf'
+
+# La imitación de la pantalla Sharp (ya compilada)
+[[chip]]
+name = 'sharp-lcd'
+binary = 'chips/sharp-lcd.chip.wasm'
