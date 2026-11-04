@@ -1,0 +1,7 @@
+{
+  "name": "Sharp Memory LCD 1.3in (ADA-3502)",
+  "author": "Flavio",
+  "pins": ["VIN", "3V3", "GND", "CLK", "DI", "CS", "EMD", "DISP", "EIN", "", "", "", "", "", "", "", "", ""],
+  "controls": [],
+  "display": { "width": 144, "height": 168 }
+}

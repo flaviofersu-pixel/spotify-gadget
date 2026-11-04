@@ -1,0 +1,9 @@
+[wokwi]
+version = 1
+firmware = '.pio/build/xiao/firmware.bin'
+elf = '.pio/build/xiao/firmware.elf'
+
+# Fake Sharp display custom chip (precompiled)
+[[chip]]
+name = 'sharp-lcd'
+binary = 'chips/sharp-lcd.chip.wasm'
