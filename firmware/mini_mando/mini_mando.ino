@@ -7,9 +7,12 @@
 // No app, no Spotify Premium and no Wi-Fi needed.
 //
 // Wiring: CLK->D8, DI->D10, CS->D3, VIN->3V3, GND->GND
-//         buttons: D0 (previous), D1 (play/pause), D2 (next), other leg to GND
+//         buttons: D0 (previous), D1 (play/pause), D2 (next), other leg to D4
+//         (D4 is driven LOW in setup() and works as GND for the buttons)
 //
 // First pairing: iPhone Settings > Bluetooth > "Mini Mando" > Pair.
+//
+// Power: hold play/pause for 2 seconds to switch off, and again to switch on.
 
 #include <bluefruit.h>
 #include <Adafruit_GFX.h>
@@ -93,6 +96,7 @@ const uint8_t catBitmap[] PROGMEM = {
 #define BTN_PREV  D0
 #define BTN_PLAY  D1
 #define BTN_NEXT  D2
+#define BTN_GND   D4   // driven LOW: ground for the buttons
 
 #define BLACK 0
 #define WHITE 1
@@ -131,6 +135,7 @@ float elapsedSec    = 0;        // position when the iPhone last told us
 float playbackRate  = 0;        // 1.0 while playing, 0 while paused
 uint32_t elapsedAtMs = 0;       // millis() when elapsedSec was received
 int batteryPercent = -1;        // -1 until the first reading
+bool usbPower = false;          // true while a USB cable is plugged in (the battery is charging)
 bool connected  = false;
 bool ready      = false;          // paired and subscribed to AMS
 bool paired     = false;          // link is encrypted, but media service not found yet
@@ -166,7 +171,7 @@ void toAscii(const uint8_t* in, uint16_t len, char* out, size_t outSize) {
 
 // The screen is mounted sideways (landscape), so the picture is 168 wide x 144 tall.
 // If everything shows upside down, change 1 to 3.
-#define DISPLAY_ROTATION 1
+#define DISPLAY_ROTATION 3   // 1 = original, 3 = turned 180 degrees
 
 // Prints text in up to maxLines lines of maxChars characters, breaking between words.
 // bold = draw it twice, 1 pixel apart, so it looks thicker.
@@ -239,7 +244,21 @@ int voltsToPercent(float v) {
   return 100;
 }
 
+// True when a USB cable gives power. The XIAO then charges the battery by itself.
+bool readUsbPower() {
+  uint32_t status = 0;
+  sd_power_usbregstatus_get(&status);
+  return status & POWER_USBREGSTATUS_VBUSDETECT_Msk;
+}
+
 void updateBattery() {
+  // USB plugged in or out: check every loop so the bolt appears straight away
+  bool usb = readUsbPower();
+  if (usb != usbPower) {
+    usbPower = usb;
+    needsRedraw = true;
+  }
+
   static uint32_t lastRead = 0;
   if (batteryPercent >= 0 && millis() - lastRead < 30000) return;  // every 30 seconds
   lastRead = millis();
@@ -255,6 +274,26 @@ void drawBatteryIcon(int x, int y, uint16_t color) {
   display.drawRect(x, y, 16, 8, color);
   display.fillRect(x + 16, y + 2, 2, 4, color);
   if (batteryPercent > 0) display.fillRect(x + 2, y + 2, 12 * batteryPercent / 100, 4, color);
+}
+
+// Lightning bolt, 5 x 8 px
+void drawBolt(int x, int y, uint16_t color) {
+  display.fillTriangle(x + 4, y, x, y + 4, x + 3, y + 4, color);
+  display.fillTriangle(x + 1, y + 8, x + 5, y + 3, x + 2, y + 3, color);
+}
+
+// "[bolt] 85% [battery]" ending at x + 18 (the right edge of the battery icon)
+void drawBatteryStatus(int x, int y, uint16_t color) {
+  drawBatteryIcon(x, y, color);
+  if (batteryPercent < 0) return;
+  char buf[6];
+  snprintf(buf, sizeof(buf), "%d%%", batteryPercent);
+  int tx = x - 3 - 6 * strlen(buf);
+  display.setTextSize(1);
+  display.setTextColor(color);
+  display.setCursor(tx, y);
+  display.print(buf);
+  if (usbPower) drawBolt(tx - 8, y, color);
 }
 
 void drawPlayIcon(int x, int y, uint16_t color) {   // small triangle, 7 px tall
@@ -313,7 +352,7 @@ void drawNowPlaying() {
   display.print("Now Playing");
   if (playing) drawPlayIcon(w - 12, 3, WHITE);
   else drawPauseIcon(w - 13, 3, WHITE);
-  drawBatteryIcon(w - 38, 3, WHITE);
+  drawBatteryStatus(w - 38, 3, WHITE);
   display.setTextColor(BLACK);
 
   // Cover placeholder on the left, song info on the right
@@ -350,6 +389,8 @@ void draw() {
   display.setTextWrap(false);
 
   if (!connected || !ready) {
+    drawBatteryStatus(display.width() - 22, 3, BLACK);
+    display.setTextColor(BLACK);
     display.setTextSize(2);
     display.setCursor(4, 30);
     display.print("Mini Mando");
@@ -496,17 +537,60 @@ void startAdvertising() {
 }
 
 // ---------- Buttons ----------
+// Previous and next act as soon as they are pressed.
+// Play/pause acts when it is released, so a long hold can mean "power off" instead.
+
+#define HOLD_MS 2000   // hold play/pause this long to switch off (and on again)
 
 const uint8_t buttonPins[3]     = { BTN_PREV, BTN_PLAY, BTN_NEXT };
 const uint8_t buttonCommands[3] = { CMD_PREVIOUS, CMD_TOGGLE, CMD_NEXT };
 bool buttonWasDown[3] = { false, false, false };
+uint32_t playDownSince = 0;
+
+// ---------- Power off / on ----------
+// "Off" is the chip's System OFF mode: Bluetooth and the program stop and it uses only
+// a few microamps. Pressing play/pause wakes it up, which restarts the program from setup().
+// Charging over USB still works while it is off.
+
+void powerOff() {
+  display.clearDisplayBuffer();
+  display.setTextColor(BLACK);
+  display.setTextSize(2);
+  display.setCursor(4, 60);
+  display.print("Bye!");
+  display.refresh();
+  while (digitalRead(BTN_PLAY) == LOW) delay(10);  // wait for release, or it would wake at once
+  delay(300);
+  display.clearDisplay();                           // leave the screen blank while off
+  systemOff(BTN_PLAY, LOW);                         // wake up when play/pause goes LOW
+}
+
+// After waking up, only stay on if play/pause is held for HOLD_MS (a short tap goes back to sleep)
+void checkWakeHold() {
+  if (!(readResetReason() & POWER_RESETREAS_OFF_Msk)) return;  // normal start (USB, reset): stay on
+  uint32_t start = millis();
+  while (digitalRead(BTN_PLAY) == LOW) {
+    if (millis() - start >= HOLD_MS) {
+      while (digitalRead(BTN_PLAY) == LOW) delay(10);  // wait for release so it doesn't toggle music
+      return;
+    }
+    delay(10);
+  }
+  systemOff(BTN_PLAY, LOW);  // released too early: back to sleep
+}
 
 void checkButtons() {
   for (int i = 0; i < 3; i++) {
     bool down = digitalRead(buttonPins[i]) == LOW;
-    if (down && !buttonWasDown[i] && ready) {
+
+    if (buttonPins[i] == BTN_PLAY) {
+      if (down && !buttonWasDown[i]) playDownSince = millis();
+      if (down && millis() - playDownSince >= HOLD_MS) powerOff();       // long hold
+      if (!down && buttonWasDown[i] && ready) amsRemoteCommand.write8_resp(buttonCommands[i]);  // short press
+    } else if (down && !buttonWasDown[i] && ready) {
       amsRemoteCommand.write8_resp(buttonCommands[i]);
     }
+
     buttonWasDown[i] = down;
   }
 }
@@ -514,7 +598,10 @@ void checkButtons() {
 // ---------- Main ----------
 
 void setup() {
+  pinMode(BTN_GND, OUTPUT);
+  digitalWrite(BTN_GND, LOW);
   for (int i = 0; i < 3; i++) pinMode(buttonPins[i], INPUT_PULLUP);
+  checkWakeHold();
   setupBattery();
 
   display.begin();
