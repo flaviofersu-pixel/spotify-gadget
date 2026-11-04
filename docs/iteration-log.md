@@ -20,7 +20,7 @@ Everything I tried, in order, with what went wrong and what changed.
 - Buy two XIAO boards: one with pre-soldered headers for the breadboard, one without for inside the case.
 - Start with the Adafruit Sharp breakout (40 x 39 mm, easy to wire) and move to the bare panel for the slim version later.
 
-**Output:** [`hardware/case/v0-size-test`](../hardware/case/v0-size-test), a solid 26 x 38 x 9 mm block to check the size on the phone. Plus 3D renders of the idea in [`media/renders`](../media/renders).
+**Output:** [`hardware/case/v0-size-test`](../hardware/case/v0-size-test), a solid 26 x 38 x 9 mm block to check the size on the phone. Plus 3D renders of the remote in [`media/renders`](../media/renders).
 
 ## 1. Simulation (Oct 29)
 

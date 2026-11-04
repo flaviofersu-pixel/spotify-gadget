@@ -3,7 +3,7 @@
 A small Bluetooth remote with a low-power screen that shows what is playing on my iPhone and lets me play/pause and skip songs. It is my first hardware project, built from scratch: choosing parts, breadboarding, writing firmware, designing and 3D-printing seven case iterations, and finally designing a custom PCB.
 
 <p align="center">
-  <img src="media/renders/on-phone-angle.png" alt="Render of the remote next to the camera of an iPhone 16 Pro" width="300">
+  <img src="media/renders/remote-angle.png" alt="3D render of the Mini Mando remote" width="300">
   &nbsp;&nbsp;
   <img src="media/renders/screen-ui-mockup.png" alt="The Now Playing screen" width="380">
 </p>
@@ -55,7 +55,7 @@ Full details, with what went wrong and what I changed each time: **[docs/iterati
 | [`hardware/pcb/v0.1/`](hardware/pcb/v0.1/) | Custom PCB: Gerbers for JLCPCB/AISLER, preview, 1:1 paper template and the Python generator. |
 | [`simulation/`](simulation/) | Wokwi simulation, for the browser and for VS Code + PlatformIO. |
 | [`keychain/`](keychain/) | Side project: decorative keychains inspired by the remote. |
-| [`media/`](media/) | Renders, photos of the prints and 3D models (`.glb`). |
+| [`media/`](media/) | Renders, photos of the prints and the 3D model of the remote ([`media/3d/remote.glb`](media/3d/remote.glb), viewable with [`media/3d/viewer.html`](media/3d/viewer.html)). |
 | [`docs/`](docs/) | Iteration log, bill of materials, wiring. |
 
 ## Build it yourself
