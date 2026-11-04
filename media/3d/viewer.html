@@ -1,0 +1,24 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Mini Mando 3D model</title>
+<!-- Google's free <model-viewer>. Keep this file next to remote.glb. -->
+<script type="module" src="https://ajax.googleapis.com/ajax/libs/model-viewer/3.5.0/model-viewer.min.js"></script>
+<style>
+  body { margin: 0; font-family: system-ui, sans-serif; background: #eef0f3; }
+  model-viewer { width: 100%; height: 80vh; }
+</style>
+</head>
+<body>
+  <model-viewer
+    src="remote.glb"
+    alt="Mini Mando Spotify remote with screen and three buttons"
+    camera-controls
+    auto-rotate
+    shadow-intensity="1"
+    exposure="1.1">
+  </model-viewer>
+</body>
+</html>
